@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <title>Futbol Oyunları</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Segoe+UI&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #00796b;
+      --light-bg: #f0f9f9;
+      --dark-bg: #121212;
+      --light-text: #222;
+      --dark-text: #eee;
+      --card-bg: #fff;
+      --card-dark: #1e1e1e;
+    }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background: var(--light-bg);
+      color: var(--light-text);
+      transition: all 0.3s ease;
+    }
+    body.dark {
+      background: var(--dark-bg);
+      color: var(--dark-text);
+    }
+    header {
+      background: var(--primary);
+      color: white;
+      padding: 15px;
+      text-align: center;
+      position: relative;
+    }
+    .menu-toggle {
+      position: absolute;
+      left: 15px;
+      top: 15px;
+      font-size: 24px;
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+    .side-menu {
+      position: fixed;
+      top: 0;
+      left: -250px;
+      width: 250px;
+      height: 100%;
+      background: #004d40;
+      color: white;
+      padding-top: 60px;
+      transition: left 0.3s ease;
+      z-index: 1000;
+      overflow-y: auto;
+    }
+    .side-menu.open {
+      left: 0;
+    }
+    .side-menu a, .side-menu label, .side-menu select {
+      display: block;
+      padding: 12px 20px;
+      color: white;
+      text-decoration: none;
+      font-size: 16px;
+      border-bottom: 1px solid #333;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px;
+      justify-content: center;
+    }
+    input, select, button {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      min-width: 140px;
+      box-sizing: border-box;
+    }
+    .match {
+      background: var(--card-bg);
+      margin: 10px;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    body.dark .match {
+      background: var(--card-dark);
+    }
+    .teams {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .teams img {
+      width: 30px;
+      height: 30px;
+    }
+    .teams strong {
+      flex: 1;
+      text-align: center;
+    }
+    .stats {
+      margin-top: 10px;
+      font-size: 0.9em;
+      display: none;
+    }
+    @media (max-width: 600px) {
+      html { font-size: 16px; }
+      .teams {
+        flex-direction: column;
+        align-items: center;
+      }
+      .side-menu a, .side-menu label, .side-menu select {
+        font-size: 14px;
+        padding: 15px 25px;
+      }
+      .controls {
+        gap: 5px;
+      }
+      input, select, button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+    <h1 id="pageTitle">Futbol Oyunları</h1>
+  </header>
+
+  <div class="side-menu" id="sideMenu">
+    <button onclick="closeMenu()" style="position:absolute;top:10px;right:15px;font-size:22px;background:none;border:none;color:white;cursor:pointer;">✖</button>
+    <a href="https://mccleaurg-glionts-twaency.yolasite.com/" target="_blank">🏠 Yerli Xəbərlər</a>
+    <a href="https://mccleaurg-glionts-twaency.yolasite.com/xarici-futbol-x%C9%99b%C9%99rl%C9%99ri/" target="_blank">🌍 Xarici Xəbərlər</a>
+    <label><input type="checkbox" id="darkToggle"> 🌙 Qaranlıq rejim</label>
+    <label>🌐 Dil:
+      <select id="langSelect">
+        <option value="az">AZ</option>
+        <option value="en">EN</option>
+        <option value="tr">TR</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="controls">
+    <input type="date" id="dateInput">
+    <input type="text" id="searchInput" placeholder="Komanda axtar...">
+    <select id="countryFilter"><option value="">🌍 Bütün ölkələr</option></select>
+    <select id="leagueFilter"><option value="">🏆 Bütün turnirlər</option></select>
+    <button onclick="fetchMatches()">🔄 Yenilə</button>
+  </div>
+
+  <h2 style="text-align:center;" id="matchesTitle">📅 Bugünkü Oyunlar</h2>
+  <div id="past-matches">Yüklənir...</div>
+  <div id="upcoming-matches"></div>
+
+  <script>
+    const dateInput = document.getElementById('dateInput');
+    const searchInput = document.getElementById('searchInput');
+    const countryFilter = document.getElementById('countryFilter');
+    const leagueFilter = document.getElementById('leagueFilter');
+    const darkToggle = document.getElementById('darkToggle');
+    const langSelect = document.getElementById('langSelect');
+
+    dateInput.value = new Date().toISOString().split('T')[0];
+
+    function toggleMenu() {
+      document.getElementById('sideMenu').classList.toggle('open');
+    }
+    function closeMenu() {
+      document.getElementById('sideMenu').classList.remove('open');
+    }
+
+    darkToggle.addEventListener('change', () => {
+      document.body.classList.toggle('dark', darkToggle.checked);
+      localStorage.setItem('darkMode', darkToggle.checked);
+    });
+
+    if (localStorage.getItem('darkMode') === 'true') {
+      darkToggle.checked = true;
+      document.body.classList.add('dark');
+    }
+
+    async function fetchMatches() {
+      const date = dateInput.value;
+      const search = searchInput.value.toLowerCase();
+      const selectedCountry = countryFilter.value;
+      const selectedLeague = leagueFilter.value;
+
+      try {
+        const res = await fetch(`https://api.sofascore.com/api/v1/sport/football/scheduled-events/${date}`);
+        const data = await res.json();
+        const events = data.events;
+
+        const countries = [...new Set(events.map(e => e.tournament.category.country.name))];
+        const leagues = [...new Set(events.map(e => e.tournament.name))];
+        countryFilter.innerHTML = '<option value="">🌍 Bütün ölkələr</option>' + countries.map(c => `<option value="${c}">${c}</option>`).join('');
+        leagueFilter.innerHTML = '<option value="">🏆 Bütün turnirlər</option>' + leagues.map(l => `<option value="${l}">${l}</option>`).join('');
+
+        const filtered = events.filter(e =>
+          (e.homeTeam.name.toLowerCase().includes(search) || e.awayTeam.name.toLowerCase().includes(search)) &&
+          (selectedCountry === '' || e.tournament.category.country.name === selectedCountry) &&
+          (selectedLeague === '' || e.tournament.name === selectedLeague)
+        );
+
+        filtered.sort((a, b) => a.startTimestamp - b.startTimestamp);
+        displayMatches(filtered);
+      } catch (err) {
+        document.getElementById('past-matches').innerText = '❌ Xəta baş verdi.';
+      }
+    }
+
+    function displayMatches(matches) {
+      const now = Math.floor(Date.now() / 1000);
+      const pastDiv = document.getElementById('past-matches');
+      const upcDiv = document.getElementById('upcoming-matches');
+      pastDiv.innerHTML = '';
+      upcDiv.innerHTML = '';
+
+      const groups = {};
+      for (let match of matches) {
+        const tid = match.tournament.id;
+        if (!groups[tid]) groups[tid] = { tournament: match.tournament, matches: [] };
+        groups[tid].matches.push(match);
+      }
+
+      for (let tid in groups) {
+        const group = groups[tid];
+        const groupEl = document.createElement('div');
+        const logo = `https://api.sofascore.app/api/v1/unique-tournament/${group.tournament.uniqueTournament.id}/image`;
+        groupEl.innerHTML = `<h3 style="margin-top:20px;"><img src="${logo}" style="width:28px;height:28px;"> ${group.tournament.name}</h3>`;
+
+        for (let match of group.matches) {
+          const live = match.status.type === 'inprogress';
+          const finished = match.status.type === 'finished';
+          const pause = match.status.type === 'pause';
+          const logo1 = `https://api.sofascore.app/api/v1/team/${match.homeTeam.id}/image`;
+          const logo2 = `https://api.sofascore.app/api/v1/team/${match.awayTeam.id}/image`;
+          const goals = (match.goals || [])
+         .filter(g => g.player && g.player.name)
+         .map(g => `⚽ <strong>${g.player.name}</strong> (${g.home ? match.homeTeam.name : match.awayTeam.name})`)
+         .join('<br>') || '⚽ Qol yoxdur.';
+
+          const cards = (match.cards || []).map(card => {
+            const emoji = card.card === 'red' ? '🔴' : card.card === 'yellow' ? '🟨' : '';
+            const team = card.homeTeam ? match.homeTeam.name : match.awayTeam.name;
+            return `${emoji} <strong>${card.player.name}</strong> (${team})`;
+          }).join('<br>');
+          const minutesPassed = Math.floor((now - match.startTimestamp) / 60);
+
+          let status = '';
+          if (live) status = `<span style="color:green;font-weight:bold;">🟢 Canlı — ${minutesPassed}-dəq</span>`;
+          else if (pause) status = `<span style="color:orange;">⏸️ Fasilə</span>`;
+          else if (finished) status = `<span style="color:red;">🔚 Bitdi</span>`;
+
+          const div = document.createElement('div');
+          div.className = 'match';
+          div.innerHTML = `
+            <div class="teams">
+              <img src="${logo1}"><strong>${match.homeTeam.name}</strong>
+              <span>${match.homeScore.current ?? ''} - ${match.awayScore.current ?? ''}</span>
+              <strong>${match.awayTeam.name}</strong><img src="${logo2}">
+            </div>
+            <div>
+              ${status}<br>
+              🕒 ${new Date(match.startTimestamp * 1000).toLocaleString()}<br>
+              🏟️ ${match.venue?.name || 'N/A'}<br>
+              <div class="stats">
+                <strong>📊 Statistika:</strong><br>
+                ${goals || '⚽ Qol yoxdur.'}
+                ${cards ? `<br><br>${cards}` : ''}
+              </div>
+            </div>
+          `;
+          div.addEventListener('click', () => {
+            const stats = div.querySelector('.stats');
+            stats.style.display = stats.style.display === 'block' ? 'none' : 'block';
+          });
+
+          const earliest = group.matches[0].startTimestamp;
+          (earliest < now ? pastDiv : upcDiv).appendChild(groupEl);
+          groupEl.appendChild(div);
+        }
+      }
+    }
+
+    fetchMatches();
+    setInterval(fetchMatches, 60000);
+  </script>
+</body>
+</html>
